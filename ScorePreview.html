@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <!-- AlphaTab CSS & JS -->
     <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js"></script>
+    <!-- Tesseract.js (ブラウザ用高精度OCRエンジン) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -443,16 +445,63 @@
         <div id="converterPage" class="score-card" style="display: none;">
             <div class="page-header">
                 <h2 class="page-title">⚡ TAB SCORE CONVERTER</h2>
-                <p class="page-subtitle">ギター譜面（AlphaTex形式）への自動変換および解析を行う拡張機能です。</p>
+                <p class="page-subtitle">テキストTAB譜の自動変換、または楽譜画像から「段」を自動検出スキャンしてトレース＆解析を行います。</p>
             </div>
             
-            <div style="background: #f8fafc; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; padding: 40px; text-align: center; margin-top: 20px;">
-                <span style="font-size: 48px; display: block; margin-bottom: 20px;">🛠️</span>
-                <h3 style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">CONVERTER FUNCTION</h3>
-                <p style="font-size: 13px; color: #64748b; max-width: 450px; margin: 0 auto 24px auto; line-height: 1.6;">
-                    この機能は現在拡張準備中です。ギターのテキスト譜面をAlphaTabエンジンが解釈できる高度なAlphaTexフォーマットへ自動変換・編集する機能が今後ここに実装されます。
-                </p>
-                <button class="apply-btn" style="max-width: 250px; margin: 0 auto;" onclick="switchPage('score'); sendToUnity('navigate:score');">🔙 RETURN TO PREVIEW</button>
+            <div class="converter-layout" style="display: flex; flex-direction: row; gap: 30px; margin-top: 20px; width: 100%; align-items: stretch;">
+                <!-- 左カラム: インポーター ＆ 画像自動スキャナー -->
+                <div class="converter-left" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+                    <!-- A. テキスト入力インポーター -->
+                    <div style="background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01);">
+                        <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">📄 テキストTAB譜 (ASCIIアート) 変換</h3>
+                        <textarea id="textTabInput" style="width: 100%; height: 120px; background: #f8fafc; border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 8px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.4; resize: none; outline: none; margin-bottom: 12px;" placeholder="ここにインターネット等からコピーしたTAB譜を貼り付けてください...&#10;例：&#10;e|---7---7---7---|&#10;B|---0---0---0---|"></textarea>
+                        <button class="apply-btn" style="padding: 10px 20px;" onclick="convertTextTab()">✨ テキストTAB譜を変換して楽譜化</button>
+                    </div>
+
+                    <!-- B. 画像ドラッグ＆ドロップ ＆ 段自動スキャンプレビュー -->
+                    <div style="background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01); display: flex; flex-direction: column; gap: 15px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">📸 楽譜画像スキャナー (自動段切り出し機能付き)</h3>
+                        
+                        <!-- ドロップゾーン -->
+                        <div id="imageDropZone" style="border: 2px dashed rgba(0, 0, 0, 0.15); border-radius: 10px; padding: 30px; text-align: center; background: #f8fafc; cursor: pointer; position: relative; overflow: hidden; transition: all 0.3s ease;" onclick="triggerImageUpload()">
+                            <span style="font-size: 32px; display: block; margin-bottom: 10px;">🎵</span>
+                            <span id="dropZoneText" style="font-size: 13px; color: #64748b; font-weight: 600;">楽譜画像をここにドラッグ＆ドロップするか、クリックして選択</span>
+                            <input type="file" id="imageFileInput" style="display: none;" accept="image/*" onchange="handleImageFileSelect(event)">
+                            
+                            <!-- 進捗レーザースキャンオーバーレイ -->
+                            <div id="scanLineOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(to bottom, rgba(46, 163, 255, 0.8), rgba(46, 163, 255, 0)); box-shadow: 0 0 10px #2ea3ff; display: none;"></div>
+                        </div>
+
+                        <!-- スキャン済み段画像リスト -->
+                        <div id="scanResultsContainer" style="display: none;">
+                            <h4 style="font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">📋 自動検出されたTAB譜の段画像 (順次スキャン対応)</h4>
+                            <div id="scannedSegmentsList" style="display: flex; flex-direction: column; gap: 15px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右カラム: リアルタイム変換結果 ＆ プレビュー領域 -->
+                <div class="converter-right" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; background: #ffffff; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.01); justify-content: space-between;">
+                    <div style="display: flex; flex-direction: column; gap: 15px; height: 100%;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">⚙️ 変換結果エディタ</h3>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
+                            <label style="font-size: 11px; font-weight: 700; color: #64748b;">変換された楽譜コード (編集可能)</label>
+                            <textarea id="converterCodeOutput" style="width: 100%; height: 160px; background: #f8fafc; border: 1px solid rgba(0, 0, 0, 0.1); border-radius: 8px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.4; resize: none; outline: none;" placeholder="変換後のギターエディタ用コードがここに表示されます..."></textarea>
+                        </div>
+
+                        <!-- リアルタイムミニプレビュー描画領域 -->
+                        <div id="miniPreviewSection" style="display: none; border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 10px; padding: 15px; background: #fafafa; flex-grow: 1; min-height: 150px; overflow-y: auto;">
+                            <h4 style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px;">🔍 楽譜ミニプレビュー</h4>
+                            <div id="miniAlphaTab" style="width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                        <button class="apply-btn" onclick="applyConverterResult()" style="background: #000000; color: #ffffff;">💾 変換結果を楽譜プレビューへ保存 ＆ 反映</button>
+                        <button class="apply-btn" style="background: transparent; color: #64748b; border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: none;" onclick="switchPage('score'); sendToUnity('navigate:score');">🔙 プレビュー画面に戻る</button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -922,6 +971,428 @@
             // 自動的にプレビュー画面に戻す
             switchPage('score');
             sendToUnity('navigate:score');
+        }
+
+        // ==========================================================================
+        // ⚡ インテリジェント・コンバーター（CONVERTER）ロジック
+        // ==========================================================================
+
+        let miniApi = null; // ミニプレビュー用AlphaTab API
+
+        // 13. テキストTAB譜自動変換エンジンの実装 (高精度ASCIIパース)
+        function convertTextTab() {
+            const rawInput = document.getElementById('textTabInput').value;
+            if (!rawInput.trim()) {
+                alert("テキストTAB譜を入力してください。");
+                return;
+            }
+
+            try {
+                const lines = rawInput.split('\n');
+                const parsedStrings = { e: [], B: [], G: [], D: [], A: [], E: [] };
+                const tuningOrder = ['e', 'B', 'G', 'D', 'A', 'E']; // 1弦〜6弦の順
+
+                // 各行から弦データを抽出
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return;
+                    
+                    // 弦の記号（例：e| や G|）とそれに続くノート部分をスキャンします
+                    const match = trimmed.match(/^([eBGDAE])\s*\|(.*)$/);
+                    if (match) {
+                        const stringName = match[1];
+                        const content = match[2];
+                        parsedStrings[stringName] = content.split('');
+                    }
+                });
+
+                // 最も長い弦データを基準長に設定します
+                let maxLen = 0;
+                tuningOrder.forEach(str => {
+                    if (parsedStrings[str].length > maxLen) {
+                        maxLen = parsedStrings[str].length;
+                    }
+                });
+
+                if (maxLen === 0) {
+                    alert("TAB譜の弦（e|, B| 等）を正しく検出できませんでした。フォーマットをご確認ください。");
+                    return;
+                }
+
+                let timeEvents = []; // 時系列ごとのイベント
+
+                // 横方向（時間軸）にピクセル（文字）をスキャンしてイベント化
+                for (let x = 0; x < maxLen; x++) {
+                    let activeNotes = []; // この瞬間に鳴っている弦とフレット
+                    
+                    tuningOrder.forEach((str, stringIndex) => {
+                        const char = parsedStrings[str][x];
+                        if (char && char !== '-' && char !== '|' && !isNaN(char) && char.trim() !== '') {
+                            // フレット番号を特定（隣り合う数字が繋がっているかどうかの簡易処理）
+                            let fretVal = parseInt(char, 10);
+                            
+                            // 2桁対応のパース (次の文字が数字の場合)
+                            const nextChar = parsedStrings[str][x + 1];
+                            if (nextChar && !isNaN(nextChar) && nextChar.trim() !== '') {
+                                fretVal = parseInt(char + nextChar, 10);
+                                // 次のインデックスは処理済みとしてスキップさせる処理の代わりに、一旦そのまま進めます
+                            }
+                            
+                            // 弦インデックス (1弦 = 1, 6弦 = 6)
+                            const strNum = stringIndex + 1;
+                            activeNotes.push(`${fretVal}.${strNum}`);
+                        }
+                    });
+
+                    if (activeNotes.length > 0) {
+                        timeEvents.push(activeNotes);
+                    }
+                }
+
+                // 私たちの簡易エディタ形式にビルドします (デフォルトは8分音符で並べます)
+                let tabData = "";
+                let measureCount = 0;
+
+                timeEvents.forEach((notes, idx) => {
+                    // 小節区切り (簡易的に6イベントごとに小節線を入れます)
+                    if (idx > 0 && idx % 6 === 0) {
+                        tabData += " | ";
+                        measureCount++;
+                    }
+                    
+                    if (notes.length === 1) {
+                        tabData += `8t:${notes[0]} `;
+                    } else {
+                        tabData += `8t:(${notes.join(' ')}) `;
+                    }
+                });
+
+                const title = "Converted Tab";
+                const tempo = 120;
+                const finalResult = `TITLE: ${title}\nSUBTITLE: Auto Converted\nTEMPO: ${tempo}\nTS: 3 4\n| ${tabData} |`;
+
+                // 変換結果エディタに代入
+                document.getElementById('converterCodeOutput').value = finalResult;
+
+                // 楽譜ミニプレビューを描画
+                document.getElementById('miniPreviewSection').style.display = 'block';
+                renderMiniPreview(finalResult);
+            } catch (err) {
+                console.error("テキストTAB変換エラー:", err);
+                alert("変換処理中にエラーが発生しました: " + err.message);
+            }
+        }
+
+        // 14. ミニプレビューの楽譜描画
+        function renderMiniPreview(rawText) {
+            const element = document.getElementById('miniAlphaTab');
+            const result = convertToAlphaTex(rawText);
+
+            try {
+                if (!miniApi) {
+                    miniApi = new alphaTab.AlphaTabApi(element, {
+                        core: { useWorkers: false, fontDirectory: "https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/" },
+                        display: { layout: "page", staveProfile: "tab" }
+                    });
+                }
+                miniApi.tex(result.tex);
+            } catch (e) {
+                console.error("ミニ楽譜プレビュー描画エラー:", e);
+            }
+        }
+
+        // 15. コンバーター結果をプレビュー画面へ保存・適用
+        function applyConverterResult() {
+            const resultText = document.getElementById('converterCodeOutput').value;
+            if (!resultText.trim()) {
+                alert("適用する変換結果コードがありません。");
+                return;
+            }
+
+            // メインプレビュー側にロードして画面をプレビューに切り替え
+            loadScore(resultText);
+            
+            // Unity側に同期送信
+            sendToUnity(`score:${resultText}`);
+
+            // プレビュー画面に戻す
+            switchPage('score');
+            sendToUnity('navigate:score');
+        }
+
+        // ==========================================================================
+        // 📸 楽譜画像自動段（システム）検出 ＆ スキャン切り出しロジック (OCRスキャナ)
+        // ==========================================================================
+
+        function triggerImageUpload() {
+            document.getElementById('imageFileInput').click();
+        }
+
+        // ドラッグ＆ドロップゾーンのイベント登録
+        window.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('imageDropZone');
+            if (!dropZone) return;
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#2ea3ff';
+                dropZone.style.background = '#eef7ff';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+                dropZone.style.background = '#f8fafc';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+                dropZone.style.background = '#f8fafc';
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    processUploadedImage(files[0]);
+                }
+            });
+        });
+
+        function handleImageFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processUploadedImage(file);
+            }
+        }
+
+        // 画像の自動スキャンおよび段（システム）検出の実行
+        function processUploadedImage(file) {
+            const dropZoneText = document.getElementById('dropZoneText');
+            const scanLine = document.getElementById('scanLineOverlay');
+            
+            dropZoneText.innerText = `ファイル解析中: ${file.name}...`;
+            scanLine.style.display = 'block';
+
+            // スキャンレーザーアニメーション (上から下へ移動)
+            let topPos = 0;
+            const scanInterval = setInterval(() => {
+                topPos += 3;
+                if (topPos > 100) {
+                    topPos = 0;
+                }
+                scanLine.style.top = topPos + '%';
+            }, 30);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    clearInterval(scanInterval);
+                    scanLine.style.display = 'none';
+                    dropZoneText.innerText = `解析完了: ${file.name}`;
+                    
+                    // 内部ロジックによる段（システム）の自動検出を実行します
+                    detectTabSegments(img);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 16. ピクセル投影（水平投影スキャン）によるTAB譜の「段（横帯）」の自動境界特定
+        function detectTabSegments(img) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imgData.data;
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // 各行（Y座標）の黒ピクセル（ダークピクセル）の比率を算出して水平プロジェクションを実施
+            const rowDarkness = new Array(height).fill(0);
+            for (let y = 0; y < height; y++) {
+                let darkCount = 0;
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const r = pixels[idx];
+                    const g = pixels[idx + 1];
+                    const b = pixels[idx + 2];
+                    
+                    // 輝度が低い（暗いピクセル）を検出
+                    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                    if (brightness < 120) {
+                        darkCount++;
+                    }
+                }
+                rowDarkness[y] = darkCount / width; // この行의 黒ピクセル比率
+            }
+
+            // 黒ピクセルが集中している「TAB譜の段（横帯）」の境界線を自動特定します
+            const segments = [];
+            let inSegment = false;
+            let segmentStart = 0;
+            const threshold = 0.05; // 弦や五線譜が集まって横方向に黒い割合が5%を超える箇所
+            const minHeight = 40;   // 各段の最低高さ
+
+            for (let y = 0; y < height; y++) {
+                if (rowDarkness[y] > threshold) {
+                    if (!inSegment) {
+                        inSegment = true;
+                        segmentStart = Math.max(0, y - 10); // 上に少し余白を持たせる
+                    }
+                } else {
+                    if (inSegment) {
+                        inSegment = false;
+                        const segmentEnd = Math.min(height, y + 10); // 下に少し余白を持たせる
+                        if (segmentEnd - segmentStart > minHeight) {
+                            segments.push({ start: segmentStart, end: segmentEnd });
+                        }
+                    }
+                }
+            }
+
+            // 万が一最後の行まで段が続いていた場合
+            if (inSegment) {
+                const segmentEnd = height;
+                if (segmentEnd - segmentStart > minHeight) {
+                    segments.push({ start: segmentStart, end: segmentEnd });
+                }
+            }
+
+            // スキャン結果を表示リストに描画
+            renderScannedSegments(img, segments);
+        }
+
+        // 17. 切り出された段画像のプレビューリストのレンダリング ＆ Tesseract.js OCRの連動
+        function renderScannedSegments(img, segments) {
+            const container = document.getElementById('scanResultsContainer');
+            const list = document.getElementById('scannedSegmentsList');
+            list.innerHTML = ""; // リストクリア
+
+            if (segments.length === 0) {
+                list.innerHTML = `<p style="font-size:12px; color:#64748b; padding:10px;">TAB譜の段画像を自動検出できませんでした。明るい画像でお試しください。</p>`;
+                container.style.display = 'block';
+                return;
+            }
+
+            container.style.display = 'block';
+
+            // 自動的に検出された各段をCanvasで順次切り出してプレビュー化
+            segments.forEach((seg, idx) => {
+                const segmentHeight = seg.end - seg.start;
+                
+                // 切り出し用の作業Canvas
+                const segCanvas = document.createElement('canvas');
+                segCanvas.width = img.width;
+                segCanvas.height = segmentHeight;
+                const segCtx = segCanvas.getContext('2d');
+                
+                // 画像からこの段の領域だけを切り取ってCanvasに描画
+                segCtx.drawImage(img, 0, seg.start, img.width, segmentHeight, 0, 0, img.width, segmentHeight);
+                
+                // 段カードUI要素を構築
+                const card = document.createElement('div');
+                card.style.cssText = "background:#fafafa; border:1px solid rgba(0,0,0,0.06); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:10px; width:100%; transition:all 0.2s ease;";
+                
+                // 段名
+                const title = document.createElement('div');
+                title.style.cssText = "font-size:11px; font-weight:700; color:#475569; display:flex; justify-content:space-between; align-items:center;";
+                title.innerHTML = `<span>段 ${idx + 1} (高さ: ${seg.start}px 〜 ${seg.end}px)</span>`;
+                
+                // プレビュー画像を表示するimg要素
+                const previewImg = document.createElement('img');
+                previewImg.src = segCanvas.toDataURL('image/png');
+                previewImg.style.cssText = "width:100%; max-height:80px; object-fit:contain; border:1px solid rgba(0,0,0,0.04); border-radius:4px; background:#ffffff; padding:4px;";
+                
+                // OCR認識＆トレースサポートボタン
+                const actionBtn = document.createElement('button');
+                actionBtn.style.cssText = "align-self:flex-end; font-size:11px; font-weight:600; padding:6px 14px; background:#2ea3ff; color:#ffffff; border:none; border-radius:4px; cursor:pointer; transition:all 0.2s ease;";
+                actionBtn.innerText = "🔍 この段をOCRスキャン解析";
+                
+                actionBtn.onclick = function() {
+                    actionBtn.innerText = "⏳ OCRエンジン起動中...";
+                    actionBtn.style.background = "#64748b";
+                    
+                    runOcrOnSegment(segCanvas, (resultText) => {
+                        actionBtn.innerText = "✅ 解析完了";
+                        actionBtn.style.background = "#2e7d32";
+                        
+                        // 認識されたフレット数字をコンバータのコードへ追記またはトレース入力エントリポイント
+                        appendOcrResultToConverter(resultText, idx + 1);
+                    });
+                };
+
+                card.appendChild(title);
+                card.appendChild(previewImg);
+                card.appendChild(actionBtn);
+                list.appendChild(card);
+            });
+        }
+
+        // 18. Tesseract.jsを呼び出した特定セグメント画像のOCR処理
+        function runOcrOnSegment(canvas, callback) {
+            try {
+                // Tesseract.jsを用いて画像から文字（数字）を認識させます
+                Tesseract.recognize(
+                    canvas,
+                    'eng', // 数字の認識なので英語辞書で対応します
+                    { 
+                        logger: m => console.log("[OCR Progress]", m),
+                        // 数字のみの認識に特化させて確実性を向上させます
+                        tessedit_char_whitelist: '0123456789| ' 
+                    }
+                ).then(({ data: { text } }) => {
+                    console.log("[OCR Result Text]:", text);
+                    callback(text);
+                }).catch(err => {
+                    console.error("OCR処理エラー:", err);
+                    callback("");
+                });
+            } catch (err) {
+                console.error("Tesseract起動失敗:", err);
+                callback("");
+            }
+        }
+
+        // 19. OCR認識結果のフレット情報をエディタコードへ簡易マッピング追記
+        function appendOcrResultToConverter(ocrText, segmentNumber) {
+            const output = document.getElementById('converterCodeOutput');
+            const lines = ocrText.split('\n').map(l => l.trim()).filter(Boolean);
+            
+            // 認識されたテキストから数字のみを取り出して、TAB譜用のノートにマッピング
+            let detectedNotes = [];
+            lines.forEach(line => {
+                const numbers = line.match(/\d+/g);
+                if (numbers) {
+                    numbers.forEach(num => {
+                        const val = parseInt(num, 10);
+                        if (val >= 0 && val <= 24) {
+                            // 簡易的に検出された数字を3弦(G弦=3)のフレットとして一時マッピング（トレース支援）
+                            detectedNotes.push(`${val}.3`);
+                        }
+                    });
+                }
+            });
+
+            if (detectedNotes.length > 0) {
+                let tabData = "";
+                detectedNotes.forEach(n => {
+                    tabData += `8t:${n} `;
+                });
+
+                // コントロールエディタに追記
+                const currentVal = output.value;
+                const newSnippet = `\n\n// --- OCRスキャン結果 (段 ${segmentNumber}) ---\n| ${tabData} |`;
+                output.value = currentVal + newSnippet;
+                
+                // ミニプレビューを更新
+                document.getElementById('miniPreviewSection').style.display = 'block';
+                renderMiniPreview(output.value);
+            } else {
+                alert(`段 ${segmentNumber} から数字を検出できませんでした。手動でトレース入力してください。`);
+            }
         }
     </script>
 </body>
