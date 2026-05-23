@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎸 FUMI GUITAR TAB EDITOR - 外部プレビュー</title>
+    <!-- モダンフォント -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- AlphaTab CSS & JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4ecf7 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        /* プレミアムヘッダー */
+        header {
+            height: 70px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+        }
+        
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            font-size: 24px;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #000;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .status-badge {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+        
+        .status-badge--server {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .status-badge--server.connected {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status-badge--player {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+            display: inline-block;
+        }
+        
+        .status-badge--server.connected .status-dot {
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
+        /* 楽譜コンテナ領域 */
+        main {
+            flex: 1;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .score-card {
+            width: 100%;
+            max-width: 1200px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            padding: 40px;
+            min-height: calc(100vh - 170px);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .score-card:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* ローディング・案内表示 */
+        .info-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 10;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        .info-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #222;
+        }
+        
+        .info-text {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-top-color: #000;
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+        }
+        
+        /* 楽譜本体 */
+        #alphaTab {
+            width: 100%;
+        }
+        
+        /* アニメーション定義 */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-group">
+            <span class="logo-icon">🎸</span>
+            <h1>FUMI GUITAR TAB EDITOR <span style="font-weight: 300; font-size: 14px; color: #666; margin-left: 8px;">PREVIEW</span></h1>
+        </div>
+        <div class="status-group">
+            <div id="badgeServer" class="status-badge status-badge--server">
+                <span class="status-dot"></span>
+                <span id="textServer">Unity 未接続</span>
+            </div>
+            <div id="badgePlayer" class="status-badge status-badge--player" style="display: none;">
+                <span class="status-dot"></span>
+                <span id="textPlayer">準備完了</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="score-card">
+            <!-- ロード案内画面 -->
+            <div id="loadingOverlay" class="info-overlay">
+                <div class="spinner" id="overlaySpinner"></div>
+                <div class="info-title" id="overlayTitle">Unityから楽譜を選択してください</div>
+                <div class="info-text" id="overlayText">
+                    Unityエディタを再生し、コントロールパネルの下部にある「📁 ファイル選択」をクリックすると、ここへ自動的にテスト用楽譜が描画されます。
+                </div>
+            </div>
+
+            <!-- AlphaTab 楽譜描画コンテナ -->
+            <div id="alphaTab"></div>
+        </div>
+    </main>
+
+    <script>
+        // 設定
+        const PORT = 8080;
+        const POLL_URL = `http://localhost:${PORT}/poll`;
+        const MESSAGE_URL = `http://localhost:${PORT}/message`;
+        
+        let api = null;
+        let isConnected = false;
+        let playState = 'stopped'; // 'stopped', 'playing'
+
+        // 1. AlphaTabの初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            const element = document.querySelector('#alphaTab');
+            
+            try {
+                api = new alphaTab.AlphaTabApi(element, {
+                    core: {
+                        useWorkers: false,
+                        fontDirectory: "https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/"
+                    },
+                    player: {
+                        enablePlayer: true,
+                        soundFont: "https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2"
+                    },
+                    display: {
+                        layout: "page",
+                        staveProfile: "tab"
+                    }
+                });
+                
+                // エラーイベントを監視
+                api.error.on((error) => {
+                    console.error("AlphaTab 内部エラー:", error);
+                    showFatalError("AlphaTab レンダリングエラー", error.message || error);
+                });
+                
+                // 再生プレイヤー状態変更イベント
+                api.playerReady.on(() => {
+                    document.getElementById('badgePlayer').style.display = 'flex';
+                    updatePlayerStatus('準備完了');
+                });
+
+                api.soundFontLoaded.on(() => {
+                    updatePlayerStatus('音源ロード完了');
+                });
+                
+                api.playerStateChanged.on((args) => {
+                    if (args.state === 1) { // Playing
+                        playState = 'playing';
+                        updatePlayerStatus('▶ 演奏中');
+                    } else { // Stopped or Paused
+                        playState = 'stopped';
+                        updatePlayerStatus('■ 停止中');
+                    }
+                });
+
+                // 通信開始
+                startPolling();
+            } catch (e) {
+                console.error("AlphaTabの初期化エラー:", e);
+                showFatalError("初期化エラー", e.message + "\n" + e.stack);
+            }
+        });
+
+        // 2. プレイヤー状態表示の更新
+        function updatePlayerStatus(text) {
+            document.getElementById('textPlayer').innerText = text;
+        }
+
+        // 3. 独自ギター楽譜(Romance.txt)からAlphaTex形式への簡易コンバーター (汎用アップグレード版)
+        function convertToAlphaTex(rawText) {
+            const lines = rawText.split('\n');
+            let title = "Guitar Tab";
+            let subtitle = "";
+            let tempo = 120;
+            let ts = "4 4"; // デフォルトは4/4拍子
+            let tabData = "";
+
+            // デフォルトの音価状態 (引き継ぎ用)
+            let defaultDuration = 4;
+            let defaultIsTriplet = false;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('TITLE:')) {
+                    title = trimmed.substring(6).trim();
+                } else if (trimmed.startsWith('SUBTITLE:')) {
+                    subtitle = trimmed.substring(9).trim();
+                } else if (trimmed.startsWith('TEMPO:')) {
+                    tempo = parseInt(trimmed.substring(6).trim(), 10) || 120;
+                } else if (trimmed.startsWith('TS:')) {
+                    ts = trimmed.substring(3).trim(); // 例: "3 8" や "4 4"
+                } else if (trimmed.startsWith('|')) {
+                    // 小節データのパース
+                    const measures = trimmed.split('|');
+                    measures.forEach(measure => {
+                        const mTrimmed = measure.trim();
+                        if (!mTrimmed) return;
+                        
+                        let measureText = " ";
+                        const notes = mTrimmed.split(/\s+/);
+                        
+                        notes.forEach(note => {
+                            // 音価引き継ぎのみのトークン判定 (例: ":4" または ":8t")
+                            if (note.startsWith(":") && !note.includes(".") && note.toLowerCase() !== ":r") {
+                                const durMatch = note.match(/^:(\d+)(t)?$/);
+                                if (durMatch) {
+                                    defaultDuration = parseInt(durMatch[1], 10);
+                                    defaultIsTriplet = !!durMatch[2];
+                                }
+                                return;
+                            }
+
+                            let duration = defaultDuration;
+                            let isTriplet = defaultIsTriplet;
+                            let notesPart = note;
+
+                            // 標準形式 "4:1.7" や "8t:r" のパース
+                            const prefixMatch = note.match(/^(\d+)(t)?:(.+)$/);
+                            if (prefixMatch) {
+                                duration = parseInt(prefixMatch[1], 10);
+                                isTriplet = !!prefixMatch[2];
+                                notesPart = prefixMatch[3];
+                                
+                                // デフォルト状態を更新
+                                defaultDuration = duration;
+                                defaultIsTriplet = isTriplet;
+                            }
+
+                            // 休符判定
+                            if (notesPart.toLowerCase() === 'r' || notesPart.toLowerCase() === ':r') {
+                                measureText += `r.${duration} `;
+                                if (isTriplet) {
+                                    measureText += `{tu 3} `;
+                                }
+                                return;
+                            }
+
+                            // 音符の分解 (括弧対応)
+                            let singleNotes = [];
+                            if (notesPart.startsWith("(") && notesPart.endsWith(")")) {
+                                notesPart = notesPart.substring(1, notesPart.length - 1).trim();
+                                singleNotes = notesPart.split(/[\s,]+/);
+                            } else {
+                                singleNotes = notesPart.split(',');
+                            }
+
+                            const converted = singleNotes.map(n => {
+                                const parts = n.split('.');
+                                if (parts.length === 2) {
+                                    // 弦.フレット -> フレット.弦
+                                    return `${parts[1]}.${parts[0]}`;
+                                }
+                                return '';
+                            }).filter(Boolean);
+
+                            if (converted.length > 0) {
+                                if (converted.length === 1) {
+                                    measureText += `${converted[0]}.${duration} `;
+                                } else {
+                                    measureText += `(${converted.join(' ')}).${duration} `;
+                                }
+                                if (isTriplet) {
+                                    measureText += `{tu 3} `;
+                                }
+                            }
+                        });
+                        
+                        if (measureText.trim()) {
+                            tabData += measureText + " | ";
+                        }
+                    });
+                }
+            });
+
+            // AlphaTexフォーマット文字列をビルド
+            let tex = `\\title "${title}"\n`;
+            if (subtitle) tex += `\\subtitle "${subtitle}"\n`;
+            tex += `\\tempo ${tempo}\n`;
+            tex += `\\track "Guitar"\n`;
+            tex += `\\staff {tabs}\n`;
+            tex += `\\tuning (E4 B3 G3 D3 A2 E2)\n`;
+            tex += `\\ts ${ts}\n`;
+            tex += tabData;
+            
+            return {
+                title: title,
+                tempo: tempo,
+                tex: tex
+            };
+        }
+
+        // 4. 楽譜の動的ロード処理
+        function loadScore(rawText) {
+            try {
+                if (!api) {
+                    console.warn("AlphaTab APIがまだ初期化されていません。100ms後に再試行します。");
+                    setTimeout(() => loadScore(rawText), 100);
+                    return;
+                }
+
+                const result = convertToAlphaTex(rawText);
+                
+                // 案内オーバーレイを非表示に
+                document.getElementById('loadingOverlay').style.display = 'none';
+                const element = document.getElementById('alphaTab');
+                element.style.display = 'block';
+                
+                // AlphaTabにロード
+                api.tex(result.tex);
+                
+                // 描画幅を再計算させるために遅延実行で updatePosition を呼ぶ
+                setTimeout(() => {
+                    if (api) {
+                        api.updatePosition();
+                    }
+                }, 50);
+                
+                // Unity側に同期データを送信
+                sendToUnity(`title:${result.title}`);
+                sendToUnity(`tempo:${result.tempo}`);
+                sendToUnity(`status:🟢 楽譜ロード完了`);
+            } catch (e) {
+                console.error("楽譜ロードエラー:", e);
+                showFatalError("楽譜ロードエラー", e.message + "\n" + e.stack);
+            }
+        }
+
+        // 致命的エラーを画面上にオーバーレイ表示する関数
+        function showFatalError(title, message) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+            const spinner = document.getElementById('overlaySpinner');
+            if (spinner) {
+                spinner.style.display = 'none';
+            }
+            const titleEl = document.getElementById('overlayTitle');
+            if (titleEl) {
+                titleEl.innerText = title;
+            }
+            const textEl = document.getElementById('overlayText');
+            if (textEl) {
+                textEl.innerHTML = `<pre style="color:#c62828; text-align:left; background:#ffebee; padding:15px; border-radius:8px; font-size:12px; white-space:pre-wrap; overflow-x:auto; margin-top:10px;">${message}</pre>`;
+            }
+        }
+
+        // 5. Unityへのメッセージ送信 (POST / postMessage ハイブリッド)
+        async function sendToUnity(message) {
+            // 親ウィンドウ（埋め込み側）へのポストメッセージ
+            if (window.self !== window.top) {
+                window.parent.postMessage({ type: 'toUnity', value: message }, '*');
+            }
+
+            if (!isConnected) return;
+            try {
+                await fetch(MESSAGE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: message
+                });
+            } catch (e) {
+                console.error("Unityへのメッセージ送信エラー:", e);
+            }
+        }
+
+        // 6. Unityローカルサーバーとの同期ポーリング (GET)
+        async function startPolling() {
+            const serverBadge = document.getElementById('badgeServer');
+            const serverText = document.getElementById('textServer');
+
+            while (true) {
+                try {
+                    const response = await fetch(POLL_URL);
+                    const command = await response.text();
+                    
+                    if (!isConnected) {
+                        isConnected = true;
+                        serverBadge.classList.add('connected');
+                        serverText.innerText = "Unity 同期中";
+                        sendToUnity("status:🟢 同期中(ブラウザ起動済)");
+                    }
+                    
+                    // コマンドの解析と実行
+                    if (command && command !== "none") {
+                        console.log("Unityからの受信コマンド:", command);
+                        
+                        if (command === "play") {
+                            if (api) api.play();
+                        } else if (command === "stop") {
+                            if (api) api.pause();
+                        } else if (command === "navigate:files" || command === "navigate:score") {
+                            requestScoreFile();
+                        }
+                    }
+                } catch (e) {
+                    // ローカルサーバーに繋がらないが、iframe内（Web埋め込み環境）にある場合は同期表示を維持する
+                    if (window.self !== window.top) {
+                        if (!isConnected) {
+                            isConnected = true;
+                            serverBadge.classList.add('connected');
+                            serverText.innerText = "Web連携中";
+                            sendToUnity("status:🟢 Web同期中");
+                        }
+                    } else {
+                        if (isConnected) {
+                            isConnected = false;
+                            serverBadge.classList.remove('connected');
+                            serverText.innerText = "Unity 未接続";
+                            document.getElementById('badgePlayer').style.display = 'none';
+                        }
+                    }
+                }
+                // 200ms間隔でポーリング
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        // 7. Unityサーバー側へ「楽譜ファイルを読み込んで返してほしい」という要求を送る
+        async function requestScoreFile() {
+            try {
+                const response = await fetch(`http://localhost:${PORT}/getScore`);
+                const scoreContent = await response.text();
+                if (scoreContent && !scoreContent.startsWith("error:")) {
+                    loadScore(scoreContent);
+                } else {
+                    console.error("楽譜データの取得失敗:", scoreContent);
+                }
+            } catch (e) {
+                console.error("楽譜ファイルリクエストエラー:", e);
+            }
+        }
+
+        // 8. 親ウィンドウ（埋め込み側）からのメッセージイベント受信処理
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.type === 'command') {
+                const command = msg.value;
+                console.log("埋め込み親ウィンドウからのコマンド受信:", command);
+                if (command === 'play') {
+                    if (api) api.play();
+                } else if (command === 'stop') {
+                    if (api) api.pause();
+                }
+            } else if (msg.type === 'score') {
+                // 楽譜テキストを直接描画ロード
+                console.log("埋め込み親ウィンドウから楽譜データを受信しました");
+                loadScore(msg.value);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎸 FUMI GUITAR TAB EDITOR - Web埋め込みパッケージ</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #F5F7FA;
+        }
+        
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 上部: Unity WebGL コントロールパネル領域 (高さ180px) */
+        #unity-container {
+            width: 100%;
+            height: 180px;
+            background: #FFFFFF;
+            border-bottom: 2px solid #E0E4EC;
+            position: relative;
+        }
+        
+        #unity-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 下部: 楽譜プレビューiframe領域 (残りの全高さ) */
+        #preview-container {
+            flex: 1;
+            width: 100%;
+            position: relative;
+            background: #F5F7FA;
+        }
+        
+        #score-preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* ローディングインジケーター */
+        .loading-cover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top-color: #1976D2;
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+            margin-bottom: 15px;
+        }
+        
+        .loading-text {
+            font-size: 14px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- 1. Unity WebGL (コントロールパネル) -->
+        <div id="unity-container">
+            <canvas id="unity-canvas" width="960" height="180"></canvas>
+            <div id="unity-loading-cover" class="loading-cover">
+                <div class="spinner"></div>
+                <div class="loading-text">Fumi Guitar Tab Editor (Control Panel) を起動中...</div>
+            </div>
+        </div>
+
+        <!-- 2. 楽譜プレビュー (ScorePreview.html) -->
+        <div id="preview-container">
+            <iframe id="score-preview-iframe" src="ScorePreview.html"></iframe>
+        </div>
+    </div>
+
+    <!-- Unity WebGL ロード処理 & 双方向ブリッジ用スクリプト -->
+    <script>
+        var canvas = document.querySelector("#unity-canvas");
+        var unityLoadingCover = document.querySelector("#unity-loading-cover");
+        var unityInstance = null;
+
+        // --------------------------------------------------------------------------
+        // 双方向通信ブリッジ (Unity WebGL <-> 楽譜プレビューiframe)
+        // --------------------------------------------------------------------------
+
+        // ① Unity -> ブラウザへの送信ハンドラー
+        window.SendToBrowser = function(message) {
+            console.log("[Bridge] Unity -> Browser:", message);
+            var iframe = document.getElementById("score-preview-iframe");
+            if (!iframe || !iframe.contentWindow) return;
+
+            if (message.startsWith("score:")) {
+                // 楽譜テキストデータを直接iframeに転送してレンダリング
+                var scoreText = message.substring(6);
+                iframe.contentWindow.postMessage({ type: 'score', value: scoreText }, '*');
+            } else if (message === "play" || message === "stop") {
+                // 再生・停止コマンドを転送
+                iframe.contentWindow.postMessage({ type: 'command', value: message }, '*');
+            }
+        };
+
+        // ② 楽譜プレビューiframe -> Unityへの送信受信ハンドラー
+        window.addEventListener('message', function(event) {
+            var msg = event.data;
+            if (!msg || typeof msg !== 'object') return;
+
+            // toUnity型メッセージをUnityインスタンスに送信
+            if (msg.type === 'toUnity' && unityInstance) {
+                console.log("[Bridge] Browser -> Unity:", msg.value);
+                unityInstance.SendMessage('TabEditorManager', 'OnBrowserMessage', msg.value);
+            }
+        });
+
+        // --------------------------------------------------------------------------
+        // Unity WebGL インスタンスの初期ロード
+        // --------------------------------------------------------------------------
+        var loaderUrl = "Build/WebGL.loader.js";
+        var config = {
+            dataUrl: "Build/WebGL.data",
+            frameworkUrl: "Build/WebGL.framework.js",
+            codeUrl: "Build/WebGL.wasm",
+            streamingAssetsUrl: "StreamingAssets",
+            companyName: "DefaultCompany",
+            productName: "Fumi Guitar Tab Editor",
+            productVersion: "0.1",
+        };
+
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+            createUnityInstance(canvas, config, (progress) => {
+                // ロード進捗状況の表示更新があれば記述
+            }).then((instance) => {
+                unityInstance = instance;
+                // ロード完了時にカバーをフェードアウト
+                unityLoadingCover.style.opacity = 0;
+                setTimeout(() => {
+                    unityLoadingCover.style.display = "none";
+                }, 500);
+            }).catch((message) => {
+                alert("Unityの起動に失敗しました: " + message);
+            });
+        };
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
