@@ -800,7 +800,8 @@
                 // 同じディレクトリにあるテキストファイルを直接フェッチします
                 let response;
                 try {
-                    response = await fetch(fileName);
+                    // キャッシュをバイパスするためタイムスタンプを付与してフェッチします
+                    response = await fetch(`${fileName}?t=${new Date().getTime()}`);
                     if (!response.ok) {
                         throw new Error(`HTTPエラー! ステータス: ${response.status}`);
                     }
