@@ -657,7 +657,13 @@
                                 const parts = n.split('.');
                                 if (parts.length === 2) {
                                     // 弦.フレット -> フレット.弦
-                                    return `${parts[1]}.${parts[0]}`;
+                                    const stringNum = parseInt(parts[0], 10);
+                                     const fretNum = parseInt(parts[1], 10);
+                                     if (stringNum >= 1 && stringNum <= 6 && fretNum >= 0 && fretNum <= 24) {
+                                         return `${fretNum}.${stringNum}`;
+                                     } else {
+                                         console.warn("[セーフガード] 無効な弦・フレット番号を検出して自動スキップしました:", n);
+                                     }
                                 }
                                 return '';
                             }).filter(Boolean);
@@ -1040,7 +1046,7 @@
                             
                             // 弦インデックス (1弦 = 1, 6弦 = 6)
                             const strNum = stringIndex + 1;
-                            activeNotes.push(`${fretVal}.${strNum}`);
+                            activeNotes.push(`${strNum}.${fretVal}`);
                         }
                     });
 
@@ -1229,7 +1235,7 @@
                 rowDarkness[y] = darkCount / width; // この行의 黒ピクセル比率
             }
 
-            // 黒ピクセルが集中している「TAB譜の段（横帯）」の境界線を自動特定します
+            // 黒ピクセルが集中している「TAB譜の段（横帯）」の境界線を自動特定します (五線譜の段を確実に捉えます)
             const segments = [];
             let inSegment = false;
             let segmentStart = 0;
@@ -1282,15 +1288,31 @@
             // 自動的に検出された各段をCanvasで順次切り出してプレビュー化
             segments.forEach((seg, idx) => {
                 const segmentHeight = seg.end - seg.start;
+                let sourceY = seg.start;
+                let targetHeight = segmentHeight;
+
+                // 検出された段が「五線譜」（高さが100px未満など比較的狭い段）である場合、
+                // その下にあるはずのTAB譜の領域を相対的に計算して切り出します！
+                if (segmentHeight < 100) {
+                    const H = segmentHeight;
+                    // 五線譜の終了位置(seg.end)から、五線譜の高さHの0.8倍〜2.45倍下の領域をTAB譜として切り出す
+                    sourceY = seg.end + Math.floor(H * 0.8);
+                    targetHeight = Math.floor(H * 1.65);
+                    
+                    // 画像の最大高さを超えないようにクリッピング
+                    if (sourceY + targetHeight > img.height) {
+                        targetHeight = img.height - sourceY;
+                    }
+                }
                 
                 // 切り出し用の作業Canvas
                 const segCanvas = document.createElement('canvas');
                 segCanvas.width = img.width;
-                segCanvas.height = segmentHeight;
+                segCanvas.height = targetHeight;
                 const segCtx = segCanvas.getContext('2d');
                 
-                // 画像からこの段の領域だけを切り取ってCanvasに描画
-                segCtx.drawImage(img, 0, seg.start, img.width, segmentHeight, 0, 0, img.width, segmentHeight);
+                // 画像から指定された領域（TAB譜のみ）を切り取ってCanvasに描画
+                segCtx.drawImage(img, 0, sourceY, img.width, targetHeight, 0, 0, img.width, targetHeight);
                 
                 // 段カードUI要素を構築
                 const card = document.createElement('div');
@@ -1299,7 +1321,7 @@
                 // 段名
                 const title = document.createElement('div');
                 title.style.cssText = "font-size:11px; font-weight:700; color:#475569; display:flex; justify-content:space-between; align-items:center;";
-                title.innerHTML = `<span>段 ${idx + 1} (高さ: ${seg.start}px 〜 ${seg.end}px)</span>`;
+                title.innerHTML = `<span>段 ${idx + 1} (高さ: ${sourceY}px 〜 ${sourceY + targetHeight}px)</span>`;
                 
                 // プレビュー画像を表示するimg要素
                 const previewImg = document.createElement('img');
@@ -1370,7 +1392,7 @@
                         const val = parseInt(num, 10);
                         if (val >= 0 && val <= 24) {
                             // 簡易的に検出された数字を3弦(G弦=3)のフレットとして一時マッピング（トレース支援）
-                            detectedNotes.push(`${val}.3`);
+                            detectedNotes.push(`3.${val}`);
                         }
                     });
                 }
