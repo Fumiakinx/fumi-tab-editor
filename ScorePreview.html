@@ -362,7 +362,7 @@
     <header>
         <div class="logo-group">
             <span class="logo-icon">🎸</span>
-            <h1>FUMI GUITAR TAB EDITOR <span style="font-weight: 300; font-size: 14px; color: #666; margin-left: 8px;">PREVIEW</span></h1>
+            <h1>FUMI GUITAR TAB EDITOR <span id="headerSubTitle" style="font-weight: 300; font-size: 14px; color: #666; margin-left: 8px;">PREVIEW</span></h1>
         </div>
         <div class="status-group">
             <!-- alphaTab 敬意バッジ (公式サイトへリンク) -->
@@ -436,6 +436,23 @@
             <div class="editor-wrapper">
                 <textarea id="tabCodeEditor" class="custom-textarea" placeholder="ここにタブ譜のコードを入力..."></textarea>
                 <button class="apply-btn" onclick="applyEditorChanges()">💾 APPLY CHANGES & PREVIEW</button>
+            </div>
+        </div>
+
+        <!-- D. 大画面コンバータ画面 (CONVERTER) -->
+        <div id="converterPage" class="score-card" style="display: none;">
+            <div class="page-header">
+                <h2 class="page-title">⚡ TAB SCORE CONVERTER</h2>
+                <p class="page-subtitle">ギター譜面（AlphaTex形式）への自動変換および解析を行う拡張機能です。</p>
+            </div>
+            
+            <div style="background: #f8fafc; border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; padding: 40px; text-align: center; margin-top: 20px;">
+                <span style="font-size: 48px; display: block; margin-bottom: 20px;">🛠️</span>
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">CONVERTER FUNCTION</h3>
+                <p style="font-size: 13px; color: #64748b; max-width: 450px; margin: 0 auto 24px auto; line-height: 1.6;">
+                    この機能は現在拡張準備中です。ギターのテキスト譜面をAlphaTabエンジンが解釈できる高度なAlphaTexフォーマットへ自動変換・編集する機能が今後ここに実装されます。
+                </p>
+                <button class="apply-btn" style="max-width: 250px; margin: 0 auto;" onclick="switchPage('score'); sendToUnity('navigate:score');">🔙 RETURN TO PREVIEW</button>
             </div>
         </div>
     </main>
@@ -841,23 +858,32 @@
             const preview = document.getElementById('previewPage');
             const files = document.getElementById('filesPage');
             const editor = document.getElementById('editorPage');
+            const converter = document.getElementById('converterPage');
+            const subTitle = document.getElementById('headerSubTitle');
             
-            if (!preview || !files || !editor) return;
+            if (!preview || !files || !editor || !converter) return;
 
             // すべて一旦非表示
             preview.style.display = 'none';
             files.style.display = 'none';
             editor.style.display = 'none';
+            converter.style.display = 'none';
             
             if (pageName === 'score' || pageName === 'preview') {
                 preview.style.display = 'block';
+                if (subTitle) subTitle.innerText = "PREVIEW";
                 // 描画幅を再計算させるためにupdatePositionを呼ぶ
                 setTimeout(() => { if (api) api.updatePosition(); }, 50);
             } else if (pageName === 'files') {
                 files.style.display = 'block';
+                if (subTitle) subTitle.innerText = "SELECT SCORE FILE";
             } else if (pageName === 'editor') {
                 editor.style.display = 'block';
+                if (subTitle) subTitle.innerText = "TAB SCORE EDITOR";
                 loadCurrentScoreToEditor();
+            } else if (pageName === 'converter') {
+                converter.style.display = 'block';
+                if (subTitle) subTitle.innerText = "TAB CONVERTER";
             }
         }
 
