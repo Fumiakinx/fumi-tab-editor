@@ -781,10 +781,22 @@
         async function fetchScoreFromServer(fileName) {
             try {
                 // 同じディレクトリにあるテキストファイルを直接フェッチします
-                const response = await fetch(fileName);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                let response;
+                try {
+                    response = await fetch(fileName);
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー! ステータス: ${response.status}`);
+                    }
+                } catch (fetchErr) {
+                    console.warn("相対パスでのフェッチに失敗しました。GitHub Pagesの絶対パスで再試行します:", fetchErr);
+                    // Googleサイト埋め込み時などのCORS/パス解決エラー対策フォールバック
+                    const absoluteUrl = `https://fumiakinx.github.io/fumi-tab-editor/${fileName}`;
+                    response = await fetch(absoluteUrl);
+                    if (!response.ok) {
+                        throw new Error(`絶対パスでのフェッチも失敗しました。ステータス: ${response.status}`);
+                    }
                 }
+
                 const scoreContent = await response.text();
                 if (scoreContent) {
                     loadScore(scoreContent);
@@ -792,7 +804,7 @@
                     sendToUnity(`score:${scoreContent}`);
                 }
             } catch (e) {
-                console.error("Webサーバーからの楽譜取得失敗:", e);
+                console.error("Webサーバーからの楽譜取得に失敗しました:", e);
             }
         }
 
