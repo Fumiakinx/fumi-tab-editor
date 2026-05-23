@@ -230,6 +230,131 @@
         .alphatab-badge:hover .alphatab-badge__text {
             color: #e53935; /* alphaTabのテーマレッド */
         }
+
+        /* 📄 大画面コンテンツ用CSS */
+        .page-header {
+            margin-bottom: 25px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.04);
+            padding-bottom: 15px;
+            text-align: left;
+        }
+        
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        /* プレミアムファイルカードグリッド */
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .file-card {
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+            text-align: left;
+        }
+        
+        .file-card:hover {
+            border-color: #000000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+        
+        .file-card__icon {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .file-card__name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 6px;
+        }
+        
+        .file-card__desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        /* エディタ領域 */
+        .editor-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: calc(100vh - 280px);
+            min-height: 400px;
+            width: 100%;
+        }
+        
+        .custom-textarea {
+            flex: 1;
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            color: #1e293b;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .custom-textarea:focus {
+            background: #ffffff;
+            border-color: #000000;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+        
+        .apply-btn {
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 28px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+        }
+        
+        .apply-btn:hover {
+            background: #222222;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
@@ -257,18 +382,61 @@
     </header>
 
     <main>
-        <div class="score-card">
+        <!-- A. 楽譜プレビュー画面 (PREVIEW) -->
+        <div id="previewPage" class="score-card">
             <!-- ロード案内画面 -->
             <div id="loadingOverlay" class="info-overlay">
                 <div class="spinner" id="overlaySpinner"></div>
                 <div class="info-title" id="overlayTitle">Unityから楽譜を選択してください</div>
                 <div class="info-text" id="overlayText">
-                    Unityエディタを再生し、コントロールパネルの下部にある「📁 ファイル選択」をクリックすると、ここへ自動的にテスト用楽譜が描画されます。
+                    Unityコントロールパネルの「FILES」タブをクリックして、読み込みたい楽譜ファイルを選択してください。
                 </div>
             </div>
 
             <!-- AlphaTab 楽譜描画コンテナ -->
             <div id="alphaTab"></div>
+        </div>
+
+        <!-- B. 大画面ファイル選択画面 (FILES) -->
+        <div id="filesPage" class="score-card" style="display: none;">
+            <div class="page-header">
+                <h2 class="page-title">📄 SELECT SCORE FILE</h2>
+                <p class="page-subtitle">読み込みたい楽譜ファイルを選択してください。クリックするとプレビューに反映されます。</p>
+            </div>
+            
+            <div class="files-grid">
+                <!-- プレミアムカード型ファイルリスト -->
+                <div class="file-card" onclick="selectScoreFile('Romance.txt')">
+                    <span class="file-card__icon">🎼</span>
+                    <h3 class="file-card__name">Romance.txt</h3>
+                    <p class="file-card__desc">愛のロマンス (禁じられた遊びのテーマ曲)</p>
+                </div>
+                
+                <div class="file-card" onclick="selectScoreFile('TwinkleStar.txt')">
+                    <span class="file-card__icon">🌟</span>
+                    <h3 class="file-card__name">TwinkleStar.txt</h3>
+                    <p class="file-card__desc">きらきら星 (伝統的な美しいアコースティック童謡)</p>
+                </div>
+                
+                <div class="file-card" onclick="selectScoreFile('OdeToJoy.txt')">
+                    <span class="file-card__icon">⚡</span>
+                    <h3 class="file-card__name">OdeToJoy.txt</h3>
+                    <p class="file-card__desc">交響曲第9番「歓喜の歌」 (ベートーヴェン名曲)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- C. 大画面テキストエディタ画面 (EDITOR) -->
+        <div id="editorPage" class="score-card" style="display: none;">
+            <div class="page-header">
+                <h2 class="page-title">📝 TAB SCORE EDITOR</h2>
+                <p class="page-subtitle">楽譜のコードを大画面で直接編集できます。編集後は下部の適用ボタンを押してください。</p>
+            </div>
+            
+            <div class="editor-wrapper">
+                <textarea id="tabCodeEditor" class="custom-textarea" placeholder="ここにタブ譜のコードを入力..."></textarea>
+                <button class="apply-btn" onclick="applyEditorChanges()">💾 APPLY CHANGES & PREVIEW</button>
+            </div>
         </div>
     </main>
 
@@ -464,6 +632,8 @@
             };
         }
 
+        let lastLoadedScoreText = ""; // 最後にロードされた楽譜テキストをメモリ保持
+
         // 4. 楽譜の動的ロード処理
         function loadScore(rawText) {
             try {
@@ -473,6 +643,7 @@
                     return;
                 }
 
+                lastLoadedScoreText = rawText; // プレビューデータをエディタ用に保持
                 const result = convertToAlphaTex(rawText);
                 
                 // 案内オーバーレイを非表示に
@@ -646,8 +817,73 @@
                 const fileName = msg.value;
                 console.log("埋め込み親ウィンドウから楽譜読み込み要求を受信:", fileName);
                 fetchScoreFromServer(fileName);
+            } else if (msg.type === 'navigate') {
+                const pageName = msg.value;
+                console.log("親ウィンドウからナビゲーション要求を受信しました:", pageName);
+                switchPage(pageName);
             }
         });
+
+        // 9. ページ切り替え制御
+        function switchPage(pageName) {
+            const preview = document.getElementById('previewPage');
+            const files = document.getElementById('filesPage');
+            const editor = document.getElementById('editorPage');
+            
+            if (!preview || !files || !editor) return;
+
+            // すべて一旦非表示
+            preview.style.display = 'none';
+            files.style.display = 'none';
+            editor.style.display = 'none';
+            
+            if (pageName === 'score' || pageName === 'preview') {
+                preview.style.display = 'block';
+                // 描画幅を再計算させるためにupdatePositionを呼ぶ
+                setTimeout(() => { if (api) api.updatePosition(); }, 50);
+            } else if (pageName === 'files') {
+                files.style.display = 'block';
+            } else if (pageName === 'editor') {
+                editor.style.display = 'block';
+                loadCurrentScoreToEditor();
+            }
+        }
+
+        // 10. 大画面ファイル選択時のトリガー
+        function selectScoreFile(fileName) {
+            console.log("大画面リストからファイル選択されました:", fileName);
+            fetchScoreFromServer(fileName);
+            // 選択後、自動的に楽譜プレビュー画面に戻す
+            setTimeout(() => {
+                switchPage('score');
+                sendToUnity('navigate:score');
+            }, 300);
+        }
+
+        // 11. 現在ロードされている楽譜テキストをエディタに代入
+        function loadCurrentScoreToEditor() {
+            const editor = document.getElementById('tabCodeEditor');
+            if (editor) {
+                editor.value = lastLoadedScoreText;
+            }
+        }
+
+        // 12. エディタの編集内容を適用
+        function applyEditorChanges() {
+            const editor = document.getElementById('tabCodeEditor');
+            if (!editor) return;
+            const editedText = editor.value;
+            
+            console.log("大画面エディタの編集内容を適用します");
+            loadScore(editedText);
+            
+            // Unity側に編集された内容を送信
+            sendToUnity(`score:${editedText}`);
+            
+            // 自動的にプレビュー画面に戻す
+            switchPage('score');
+            sendToUnity('navigate:score');
+        }
     </script>
 </body>
 </html>
