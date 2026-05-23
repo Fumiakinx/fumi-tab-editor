@@ -558,6 +558,25 @@
             }
         }
 
+        // 7-2. Webサーバーから指定された楽譜ファイルを取得してロードする (WebGL環境用)
+        async function fetchScoreFromServer(fileName) {
+            try {
+                // 同じディレクトリにあるテキストファイルを直接フェッチします
+                const response = await fetch(fileName);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const scoreContent = await response.text();
+                if (scoreContent) {
+                    loadScore(scoreContent);
+                    // 読み込んだ楽譜テキストをUnityへ同期送信
+                    sendToUnity(`score:${scoreContent}`);
+                }
+            } catch (e) {
+                console.error("Webサーバーからの楽譜取得失敗:", e);
+            }
+        }
+
         // 8. 親ウィンドウ（埋め込み側）からのメッセージイベント受信処理
         window.addEventListener('message', (event) => {
             const msg = event.data;
@@ -575,6 +594,10 @@
                 // 楽譜テキストを直接描画ロード
                 console.log("埋め込み親ウィンドウから楽譜データを受信しました");
                 loadScore(msg.value);
+            } else if (msg.type === 'load') {
+                const fileName = msg.value;
+                console.log("埋め込み親ウィンドウから楽譜読み込み要求を受信:", fileName);
+                fetchScoreFromServer(fileName);
             }
         });
     </script>

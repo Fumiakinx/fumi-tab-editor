@@ -139,6 +139,14 @@
                 return;
             }
 
+            if (message.startsWith("load:")) {
+                var fileName = message.substring(5);
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'load', value: fileName }, '*');
+                }
+                return;
+            }
+
             if (!iframe || !iframe.contentWindow) return;
 
             if (message.startsWith("score:")) {
