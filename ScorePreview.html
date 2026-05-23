@@ -445,7 +445,7 @@
                 // Unity側に同期データを送信
                 sendToUnity(`title:${result.title}`);
                 sendToUnity(`tempo:${result.tempo}`);
-                sendToUnity(`status:🟢 楽譜ロード完了`);
+                sendToUnity("status:LOADED");
             } catch (e) {
                 console.error("楽譜ロードエラー:", e);
                 showFatalError("楽譜ロードエラー", e.message + "\n" + e.stack);
@@ -505,7 +505,7 @@
                         isConnected = true;
                         serverBadge.classList.add('connected');
                         serverText.innerText = "Unity 同期中";
-                        sendToUnity("status:🟢 同期中(ブラウザ起動済)");
+                        sendToUnity("status:CONNECTED");
                     }
                     
                     // コマンドの解析と実行
@@ -527,7 +527,7 @@
                             isConnected = true;
                             serverBadge.classList.add('connected');
                             serverText.innerText = "Web連携中";
-                            sendToUnity("status:🟢 Web同期中");
+                            sendToUnity("status:ONLINE");
                         }
                     } else {
                         if (isConnected) {
