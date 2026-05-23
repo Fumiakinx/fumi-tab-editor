@@ -187,6 +187,49 @@
             0%, 100% { opacity: 0.4; }
             50% { opacity: 1; }
         }
+
+        /* 🎸 alphaTab 敬意バッジ */
+        .alphatab-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 6px 14px;
+            border-radius: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-right: 12px;
+        }
+        
+        .alphatab-badge:hover {
+            background: rgba(229, 57, 53, 0.08); /* alphaTabイメージカラーの薄い赤 */
+            border-color: rgba(229, 57, 53, 0.3);
+            box-shadow: 0 4px 12px rgba(229, 57, 53, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .alphatab-badge__icon {
+            font-size: 13px;
+            transition: transform 0.3s ease;
+        }
+        
+        .alphatab-badge:hover .alphatab-badge__icon {
+            transform: rotate(-15deg) scale(1.15); /* ホバー時のギター微細アニメーション */
+        }
+        
+        .alphatab-badge__text {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.3px;
+            transition: color 0.3s ease;
+        }
+        
+        .alphatab-badge:hover .alphatab-badge__text {
+            color: #e53935; /* alphaTabのテーマレッド */
+        }
     </style>
 </head>
 <body>
@@ -197,6 +240,11 @@
             <h1>FUMI GUITAR TAB EDITOR <span style="font-weight: 300; font-size: 14px; color: #666; margin-left: 8px;">PREVIEW</span></h1>
         </div>
         <div class="status-group">
+            <!-- alphaTab 敬意バッジ (公式サイトへリンク) -->
+            <a href="https://www.alphatab.net/" target="_blank" class="alphatab-badge" title="alphaTab開発陣へ敬意を込めて">
+                <span class="alphatab-badge__icon">🎸</span>
+                <span class="alphatab-badge__text">Powered by alphaTab</span>
+            </a>
             <div id="badgeServer" class="status-badge status-badge--server">
                 <span class="status-dot"></span>
                 <span id="textServer">Unity 未接続</span>
